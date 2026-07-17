@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rella Admin Console</title>
+
+    <style>
+        :root {
+            --bg: linear-gradient(180deg, #ffffff, #f3f0ff);
+            --text: #1f1f1f;
+            --card-bg: rgba(255,255,255,0.55);
+            --card-border: rgba(255,255,255,0.5);
+            --header-bg: rgba(255,255,255,0.6);
+            --icon-gradient: linear-gradient(135deg, #4b6cff, #9b5bff);
+            --shadow: rgba(100, 70, 255, 0.12);
+            --shadow-hover: rgba(100, 70, 255, 0.22);
+        }
+
+        .dark {
+            --bg: linear-gradient(180deg, #1e1e28, #15151c);
+            --text: #e6e6f0;
+            --card-bg: rgba(40,40,55,0.55);
+            --card-border: rgba(255,255,255,0.1);
+            --header-bg: rgba(30,30,45,0.6);
+            --icon-gradient: linear-gradient(135deg, #6b7cff, #b07bff);
+            --shadow: rgba(0,0,0,0.4);
+            --shadow-hover: rgba(0,0,0,0.6);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+/* SIDEBAR */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: var(--header-bg);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--card-border);
+    box-shadow: 4px 0 20px var(--shadow);
+    transition: width 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar.collapsed {
+    width: 70px;
+}
+
+.sidebar-header {
+    padding: 20px;
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--icon-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 20px;
+}
+
+.sidebar-toggle {
+    margin-left: auto;
+    cursor: pointer;
+    font-size: 22px;
+    opacity: 0.7;
+}
+
+.sidebar-menu {
+    margin-top: 20px;
+    padding-left: 10px;
+}
+
+.sidebar-menu-item {
+    padding: 14px 20px;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: 10px;
+    margin: 6px 0;
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* 💡 Improved hover visibility */
+.sidebar-menu-item:hover {
+    background: rgba(75, 108, 255, 0.15); /* stronger blue tint */
+    color: #4b6cff; /* matches your gradient accent */
+}
+
+/* Optional active state for selected menu */
+.sidebar-menu-item.active {
+    background: rgba(75, 108, 255, 0.25);
+    color: #4b6cff;
+    font-weight: 600;
+}
+
+.sidebar.collapsed .sidebar-menu-item span {
+    display: none;
+}
+
+
+        /* MAIN CONTENT */
+        .app-content {
+            margin-left: 240px;
+            padding: 32px 40px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar.collapsed ~ .app-content {
+            margin-left: 70px;
+        }
+
+        /* HEADER */
+        .app-header {
+            padding: 20px 40px;
+            background: var(--header-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            justify-content: space-between;
+        }
+
+        .app-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .app-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--icon-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 20px;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            font-size: 22px;
+            opacity: 0.7;
+        }
+
+        /* SECTION TITLE */
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+/* CARD GRID */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+/* CARD */
+.card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 24px var(--shadow);
+    border: 1px solid rgba(180, 190, 255, 0.6); /* 💡 stronger border for light mode */
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    cursor: pointer;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px var(--shadow-hover);
+    border-color: rgba(100, 120, 255, 0.8); /* 💡 subtle glow on hover */
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--icon-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 22px;
+    box-shadow: 0 4px 12px var(--shadow);
+}
+
+.card-title {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.card-description {
+    margin-top: 10px;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+/* Logout section pinned near bottom but lifted up */
+.sidebar-logout {
+    position: absolute;
+    bottom: 60px; /* moved up from 20px */
+    left: 0;
+    width: 100%;
+    padding: 0 20px;
+}
+
+/* Logout button styling */
+.logout-btn {
+    display: block;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.25); /* stronger base visibility */
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* Strong hover effect (visible in light mode) */
+.logout-btn:hover {
+    background: rgba(75,108,255,0.25); /* deeper blue tint */
+    color: #4b6cff; /* gradient accent */
+}
+
+/* Hide text when collapsed */
+.sidebar.collapsed .logout-btn span {
+    display: none;
+}
+
+
+    </style>
+</head>
+
+<body class="{% if theme == 'dark' %}dark{% endif %}">
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-icon">R</div>
+        <span>Rella Admin</span>
+        <div class="sidebar-toggle" onclick="toggleSidebar()">⮜</div>
+    </div>
+
+    <div class="sidebar-menu">
+        <div class="sidebar-menu-item"><span>Dashboard</span></div>
+        <div class="sidebar-menu-item"><span>Website</span></div>
+        <div class="sidebar-menu-item"><span>Sales</span></div>
+        <div class="sidebar-menu-item"><span>Finance</span></div>
+        <div class="sidebar-menu-item"><span>Inventory</span></div>
+        <div class="sidebar-menu-item"><span>HR</span></div>
+        <div class="sidebar-menu-item"><span>Marketing</span></div>
+        <div class="sidebar-menu-item"><span>Services</span></div>
+    </div>
+
+    <!-- LOGOUT BUTTON -->
+    <div class="sidebar-logout">
+        <a href="/logout" class="logout-btn">
+            <span> Logout</span>
+        </a>
+    </div>
+</div>
+
+
+<!-- HEADER -->
+<header class="app-header">
+    <div class="app-header-left">
+        <div class="app-header-icon">R</div>
+        <div>
+            <div class="app-header-title">Rella Administration</div>
+            <div class="app-header-subtitle">Control center for inventory, sales, users and workflows.</div>
+        </div>
+    </div>
+
+    <a href="/toggle-theme" class="theme-toggle">
+	    {% if theme == "light" %}
+	        🌙
+	    {% else %}
+	        ☀️
+	    {% endif %}
+	</a>
+    
+</header>
+
+<!-- MAIN CONTENT -->
+<div class="app-content">
+
+    <!-- WEBSITE -->
+    <div class="section-title">Website</div>
+    <div class="card-grid">
+        <div class="card"><div class="card-header"><div class="card-icon">🌐</div><div class="card-title">Website Builder</div></div><div class="card-description">Enterprise website builder.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🛒</div><div class="card-title">eCommerce</div></div><div class="card-description">Sell your products online.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📰</div><div class="card-title">Blog</div></div><div class="card-description">Publish posts, announcements, and news.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">💬</div><div class="card-title">Forum</div></div><div class="card-description">Manage a forum with FAQ and Q&A.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🎓</div><div class="card-title">eLearning</div></div><div class="card-description">Manage and publish courses.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">💻</div><div class="card-title">Live Chat</div></div><div class="card-description">Chat with your website visitors.</div></div>
+    </div>
+
+    <br><br>
+
+    <!-- SALES -->
+    <div class="section-title">Sales</div>
+    <div class="card-grid">
+        <div class="card"><div class="card-header"><div class="card-icon">📇</div><div class="card-title">CRM</div></div><div class="card-description">Track leads and close opportunities.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📈</div><div class="card-title">Sales</div></div><div class="card-description">From quotations to invoices.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🏪</div><div class="card-title">Point of Sale</div></div><div class="card-description">PoS interface for shops & restaurants.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🔄</div><div class="card-title">Subscriptions</div></div><div class="card-description">Recurring invoices and renewals.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🔑</div><div class="card-title">Rental</div></div><div class="card-description">Manage contracts, deliveries & returns.</div></div>
+    </div>
+
+    <br><br>
+
+    <!-- FINANCE -->
+    <div class="section-title">Finance</div>
+    <div class="card-grid">
+        <div class="card"><div class="card-header"><div class="card-icon">💹</div><div class="card-title">Accounting</div></div><div class="card-description">Manage financial and analytic accounting.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">💵</div><div class="card-title">Invoicing</div></div><div class="card-description">Invoices & Payments.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">💳</div><div class="card-title">Expenses</div></div><div class="card-description">Manage employee expenses.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📂</div><div class="card-title">Documents</div></div><div class="card-description">Document management.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📊</div><div class="card-title">Spreadsheets</div></div><div class="card-description">Documents spreadsheet.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">✍️</div><div class="card-title">Sign</div></div><div class="card-description">Sign documents online.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🌱</div><div class="card-title">ESG</div></div><div class="card-description">Track and report sustainability metrics.</div></div>
+    </div>
+
+    <br><br>
+
+    <!-- INVENTORY & MANUFACTURING -->
+    <div class="section-title">Inventory & Manufacturing</div>
+    <div class="card-grid">
+        <div class="card"><div class="card-header"><div class="card-icon">📦</div><div class="card-title">Inventory</div></div><div class="card-description">Manage stock and logistics activities.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🏭</div><div class="card-title">Manufacturing</div></div><div class="card-description">Manufacturing Orders & BOMs.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📘</div><div class="card-title">PLM</div></div><div class="card-description">Product Lifecycle Management.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🧾</div><div class="card-title">Purchase</div></div><div class="card-description">Purchase orders & agreements.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🔧</div><div class="card-title">Maintenance</div></div><div class="card-description">Track equipment & manage requests.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🔍</div><div class="card-title">Quality</div></div><div class="card-description">Control product quality.</div></div>
+    </div>
+
+    <br><br>
+
+    <!-- HUMAN RESOURCES -->
+    <div class="section-title">Human Resources</div>
+    <div class="card-grid">
+        <div class="card"><div class="card-header"><div class="card-icon">👤</div><div class="card-title">Employees</div></div><div class="card-description">Centralize employee information.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🎯</div><div class="card-title">Recruitment</div></div><div class="card-description">Track recruitment pipeline.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🕒</div><div class="card-title">Time Off</div></div><div class="card-description">Manage leave requests.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">⭐</div><div class="card-title">Appraisals</div></div><div class="card-description">Assess employees.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🔗</div><div class="card-title">Referral</div></div><div class="card-description">Refer candidates.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🚗</div><div class="card-title">Fleet</div></div><div class="card-description">Manage company vehicles.</div></div>
+    </div>
+
+    <br><br>
+
+    <!-- MARKETING -->
+    <div class="section-title">Marketing</div>
+    <div class="card-grid">
+        <div class="card"><div class="card-header"><div class="card-icon">🔁</div><div class="card-title">Automation</div></div><div class="card-description">Automated mailing campaigns.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">✉️</div><div class="card-title">Email Marketing</div></div><div class="card-description">Design & track emails.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📱</div><div class="card-title">SMS Marketing</div></div><div class="card-description">Send & track SMS.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">❤️</div><div class="card-title">Social Marketing</div></div><div class="card-description">Manage social media.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">🎟️</div><div class="card-title">Events</div></div><div class="card-description">Publish events & sell tickets.</div></div>
+        <div class="card"><div class="card-header"><div class="card-icon">📋</div><div class="card-title">Survey</div></div><div class="card-description">Send surveys or share live.</div></div>
+    </div>
+
+    <br><br>
+
+<!-- SERVICES -->
+<div class="section-title">Services</div>
+<div class="card-grid">
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">✅</div>
+            <div class="card-title">Project</div>
+        </div>
+        <div class="card-description">Organize & plan projects.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">⏱️</div>
+            <div class="card-title">Timesheet</div>
+        </div>
+        <div class="card-description">Track employee time.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">🚀</div>
+            <div class="card-title">Field Service</div>
+        </div>
+        <div class="card-description">Track onsite operations.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">🩺</div>
+            <div class="card-title">Helpdesk</div>
+        </div>
+        <div class="card-description">Solve customer tickets.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">📅</div>
+            <div class="card-title">Planning</div>
+        </div>
+        <div class="card-description">Manage schedules.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">📆</div>
+            <div class="card-title">Appointments</div>
+        </div>
+        <div class="card-description">Book meetings.</div>
+    </div>
+
+</div>
