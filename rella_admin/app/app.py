@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response
 from werkzeug.security import check_password_hash
 import mysql.connector
 
@@ -132,10 +132,54 @@ def current_user():
 @app.route('/records')
 @require_login
 def records():
+    from datetime import date, timedelta
+
     user = current_user()
     q = request.args.get('q', '').strip()
     start = request.args.get('start')
     end = request.args.get('end')
+    quick = request.args.get('quick')
+
+    today = date.today()
+
+    # --- QUICK FILTERS ---
+    if quick == "today":
+        start = today
+        end = today
+
+    elif quick == "yesterday":
+        start = today - timedelta(days=1)
+        end = today - timedelta(days=1)
+
+    elif quick == "last7":
+        start = today - timedelta(days=7)
+        end = today
+
+    elif quick == "current_week":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+
+    elif quick == "last_week":
+        start = today - timedelta(days=today.weekday() + 7)
+        end = start + timedelta(days=6)
+
+    elif quick == "current_month":
+        start = today.replace(day=1)
+        end = today
+
+    elif quick == "last_month":
+        first_this_month = today.replace(day=1)
+        last_month_end = first_this_month - timedelta(days=1)
+        start = last_month_end.replace(day=1)
+        end = last_month_end
+
+    elif quick == "current_year":
+        start = date(today.year, 1, 1)
+        end = today
+
+    elif quick == "last_year":
+        start = date(today.year - 1, 1, 1)
+        end = date(today.year - 1, 12, 31)
 
     # --- Base query ---
     sql = """
@@ -165,20 +209,17 @@ def records():
     if start:
         sql += " AND DATE(s.created_at) >= %s"
         params.append(start)
+
     if end:
         sql += " AND DATE(s.created_at) <= %s"
         params.append(end)
-
-    # --- Default range (last 30 days) if no filters ---
-    if not start and not end:
-        sql += " AND DATE(s.created_at) >= CURDATE() - INTERVAL 30 DAY"
 
     # --- Order newest first ---
     sql += " ORDER BY s.created_at DESC"
 
     rows = query_all(sql, params)
 
-    # --- Totals for finances integration ---
+    # --- Totals ---
     totals_sql = """
         SELECT 
             COALESCE(SUM(s.subtotal), 0) AS total_subtotal,
@@ -192,18 +233,17 @@ def records():
     if q:
         totals_sql += " AND s.invoice_no LIKE %s"
         totals_params.append(f"%{q}%")
+
     if start:
         totals_sql += " AND DATE(s.created_at) >= %s"
         totals_params.append(start)
+
     if end:
         totals_sql += " AND DATE(s.created_at) <= %s"
         totals_params.append(end)
-    if not start and not end:
-        totals_sql += " AND DATE(s.created_at) >= CURDATE() - INTERVAL 30 DAY"
 
     totals = query_one(totals_sql, totals_params)
 
-    # --- Render page ---
     return render_template(
         'records.html',
         records=rows,
@@ -211,75 +251,280 @@ def records():
         user=user,
         q=q,
         start=start,
-        end=end
+        end=end,
+        quick=quick
     )
 
 
-@app.route('/export-records-csv')
+# --- Print Records ---
+@app.route('/print-records')
 @require_login
-def export_records_csv():
-    q = request.args.get('q', '')
+def print_records():
+    from datetime import datetime, date, timedelta
+    from io import BytesIO
+    from flask import Response
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    q = request.args.get('q', '').strip()
     start = request.args.get('start')
     end = request.args.get('end')
+    quick = request.args.get('quick')
 
+    # --- Quick filters ---
+    today = date.today()
+    if quick == "last7":
+        start = today - timedelta(days=7)
+        end = today
+    elif quick == "today":
+        start = today
+        end = today
+    elif quick == "yesterday":
+        start = today - timedelta(days=1)
+        end = today - timedelta(days=1)
+    elif quick == "current_week":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    elif quick == "current_month":
+        start = today.replace(day=1)
+        end = today
+
+    # --- Query ---
     sql = """
         SELECT 
-            s.id,
             s.invoice_no,
-            s.client_id,
+            c.name AS client_name,
             s.subtotal,
             s.vat,
             s.total,
-            s.created_at
+            s.created_at,
+            u.username AS user_name
         FROM sales s
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN users u ON s.created_by = u.id
         WHERE 1=1
     """
-
     params = []
 
     if q:
         sql += " AND s.invoice_no LIKE %s"
         params.append(f"%{q}%")
-
     if start:
         sql += " AND DATE(s.created_at) >= %s"
         params.append(start)
-
     if end:
         sql += " AND DATE(s.created_at) <= %s"
         params.append(end)
 
     sql += " ORDER BY s.created_at DESC"
+    rows = query_all(sql, params)
+
+    # --- PDF Generation ---
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # --- Header ---
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(30, height - 50, "Sales Records Report")
+    pdf.setFont("Helvetica", 10)
+    pdf.line(30, height - 55, width - 30, height - 55)
+
+    # --- Filter range + timestamp ---
+    printed_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    pdf.drawString(30, height - 70, f"Filter Range: {start or '—'}  to  {end or '—'}")
+    pdf.drawRightString(width - 30, height - 70, f"Printed on: {printed_on}")
+
+    # --- Column titles ---
+    pdf.setFont("Helvetica-Bold", 10)
+    y = height - 90
+    pdf.drawString(30, y, "Invoice No")
+    pdf.drawString(160, y, "Client")
+    pdf.drawRightString(280, y, "Subtotal")
+    pdf.drawRightString(340, y, "VAT")
+    pdf.drawRightString(420, y, "Total Incl VAT")
+    pdf.drawRightString(500, y, "Created At")
+    pdf.drawRightString(580, y, "Created By")
+    pdf.line(30, y - 5, width - 30, y - 5)
+    
+    # --- Table rows ---
+    pdf.setFont("Helvetica", 9)
+    y -= 20
+    for r in rows:
+        invoice_no = str(r["invoice_no"] or "—")
+        client_name = str(r["client_name"] or "—")
+        subtotal = f"{r['subtotal']:.2f}" if r["subtotal"] is not None else "0.00"
+        vat = f"{r['vat']:.2f}" if r["vat"] is not None else "0.00"
+        total = f"{r['total']:.2f}" if r["total"] is not None else "0.00"
+        created_at = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "—"
+        user_name = str(r["user_name"] or "—")
+    
+        pdf.drawString(30, y, invoice_no)
+        pdf.drawString(160, y, client_name)
+        pdf.drawRightString(280, y, subtotal)
+        pdf.drawRightString(340, y, vat)
+        pdf.drawRightString(420, y, total)
+        pdf.drawRightString(500, y, created_at)
+        pdf.drawRightString(580, y, user_name)
+        y -= 18
+    
+        # --- Page break ---
+        if y < 50:
+            # --- Footer (always draw page number) ---
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
+
+            pdf.showPage()
+            pdf.setFont("Helvetica-Bold", 18)
+            pdf.drawString(30, height - 50, "Sales Records Report (continued)")
+            pdf.setFont("Helvetica", 10)
+            pdf.line(30, height - 55, width - 30, height - 55)
+            pdf.setFont("Helvetica-Bold", 10)
+            y = height - 80
+            pdf.drawString(30, y, "Invoice No")
+            pdf.drawString(160, y, "Client")
+            pdf.drawRightString(280, y, "Subtotal")
+            pdf.drawRightString(340, y, "VAT")
+            pdf.drawRightString(420, y, "Total Incl VAT")
+            pdf.drawRightString(500, y, "Created At")
+            pdf.drawRightString(580, y, "Created By")
+            pdf.line(30, y - 5, width - 30, y - 5)
+            pdf.setFont("Helvetica", 9)
+            y -= 20
+
+
+
+    # --- Footer ---
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
+    
+    # --- Footer (always draw page number) ---
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
+
+
+    pdf.save()
+    buffer.seek(0)
+
+    return Response(
+        buffer,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": "inline; filename=records.pdf"}
+    )
+
+
+
+# --- Export Records CSV ---
+@app.route('/export-records-csv')
+@require_login
+def export_records_csv():
+    from datetime import datetime, date, timedelta
+    import csv
+    from io import StringIO
+    from flask import Response
+
+    q = request.args.get('q', '').strip()
+    start = request.args.get('start')
+    end = request.args.get('end')
+    quick = request.args.get('quick')
+
+    today = date.today()
+
+    # --- QUICK FILTERS ---
+    if quick == "today":
+        start = today
+        end = today
+    elif quick == "yesterday":
+        start = today - timedelta(days=1)
+        end = today - timedelta(days=1)
+    elif quick == "last7":
+        start = today - timedelta(days=7)
+        end = today
+    elif quick == "current_week":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    elif quick == "last_week":
+        start = today - timedelta(days=today.weekday() + 7)
+        end = start + timedelta(days=6)
+    elif quick == "current_month":
+        start = today.replace(day=1)
+        end = today
+    elif quick == "last_month":
+        first_this_month = today.replace(day=1)
+        last_month_end = first_this_month - timedelta(days=1)
+        start = last_month_end.replace(day=1)
+        end = last_month_end
+    elif quick == "current_year":
+        start = date(today.year, 1, 1)
+        end = today
+    elif quick == "last_year":
+        start = date(today.year - 1, 1, 1)
+        end = date(today.year - 1, 12, 31)
+
+    # --- Base query (use client name instead of client ID) ---
+    sql = """
+        SELECT 
+            s.id,
+            s.invoice_no,
+            c.name AS client_name,
+            s.subtotal,
+            s.vat,
+            s.total,
+            s.created_at
+        FROM sales s
+        LEFT JOIN clients c ON s.client_id = c.id
+        WHERE 1=1
+    """
+    params = []
+
+    # --- Invoice search ---
+    if q:
+        sql += " AND s.invoice_no LIKE %s"
+        params.append(f"%{q}%")
+
+    # --- Date range filters ---
+    if start:
+        sql += " AND DATE(s.created_at) >= %s"
+        params.append(start)
+    if end:
+        sql += " AND DATE(s.created_at) <= %s"
+        params.append(end)
+
+    # --- Order newest first ---
+    sql += " ORDER BY s.created_at DESC"
 
     rows = query_all(sql, params)
 
-    # Build CSV
-    import csv
-    from io import StringIO
-
+    # --- Build CSV ---
     output = StringIO()
     writer = csv.writer(output)
 
-    writer.writerow(["ID", "Invoice No", "Client ID", "Subtotal", "VAT", "Total", "Created At"])
+    writer.writerow(["ID", "Invoice No", "Client Name", "Subtotal", "VAT", "Total", "Created At"])
 
     for r in rows:
         writer.writerow([
             r["id"],
             r["invoice_no"],
-            r["client_id"],
-            r["subtotal"],
-            r["vat"],
-            r["total"],
-            r["created_at"]
+            r["client_name"] or "—",
+            f"{r['subtotal']:.2f}" if r["subtotal"] else "0.00",
+            f"{r['vat']:.2f}" if r["vat"] else "0.00",
+            f"{r['total']:.2f}" if r["total"] else "0.00",
+            r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "—"
         ])
 
     output.seek(0)
 
+    # --- Timestamped filename ---
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"sales_records_{timestamp}.csv"
+
     return Response(
         output.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=sales_records.csv"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
 
 
 @app.route('/records/visuals')

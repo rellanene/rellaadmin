@@ -1,9 +1,27 @@
-
-
-<h2 class="section-title">Sales Records</h2>
+<h2 class="section-title">
+    Sales Records
+	<a href="{{ url_for('dashboard') }}" class="btn-back"> Back</a>
+</h2>
 
 <!-- FILTER FORM -->
 <form method="get" class="search-form">
+
+	<div class="dropdown">
+	    <button class="btn-customize">Customize ▼</button>
+	    <div class="dropdown-content">
+	        <a href="{{ url_for('records', quick='today') }}">Today</a>
+	        <a href="{{ url_for('records', quick='yesterday') }}">Yesterday</a>
+	        <a href="{{ url_for('records', quick='last7') }}">Last 7 Days</a>
+	        <a href="{{ url_for('records', quick='current_week') }}">Current Week</a>
+	        <a href="{{ url_for('records', quick='last_week') }}">Last Week</a>
+	        <a href="{{ url_for('records', quick='current_month') }}">Current Month</a>
+	        <a href="{{ url_for('records', quick='last_month') }}">Last Month</a>
+	        <a href="{{ url_for('records', quick='current_year') }}">Current Year</a>
+	        <a href="{{ url_for('records', quick='last_year') }}">Last Year</a>
+	    </div>
+	</div>
+
+
 
     <input name="q" placeholder="Search by invoice number"
            value="{{ q }}"
@@ -19,74 +37,117 @@
 
     <button type="submit" class="btn-primary">Filter</button>
 
+    <a class="btn-reset"
+       href="{{ url_for('records') }}">
+        Reset
+    </a>
+
     <a class="btn-accent"
        href="{{ url_for('export_records_csv',
                         q=q,
                         start=start,
-                        end=end) }}">
+                        end=end,
+                        quick=quick) }}">
         Export CSV
     </a>
+
+	<a class="btn-print"
+	   href="{{ url_for('print_records',
+	                    q=q,
+	                    start=start,
+	                    end=end,
+	                    quick=quick) }}"
+	   target="_blank">
+	    Print
+	</a>
+
 
     <a class="btn-visuals"
        href="{{ url_for('records_visuals',
                         q=q,
                         start=start,
-                        end=end) }}">
+                        end=end,
+                        quick=quick) }}">
         Visuals 
     </a>
 </form>
+
 
 <div class="card">
     <div class="card-header">
         <div class="card-icon"></div>
         <div class="card-title">Records Table</div>
     </div>
+
     <div class="card-description">
-		{% if records %}
-		<table class="records-table">
-		    <thead>
-		        <tr>
-		            <th>Invoice No</th>
-		            <th>Client</th>
-		            <th>Subtotal</th>
-		            <th>VAT</th>
-		            <th>Total Incl VAT</th>
-		            <th>Created At</th>
-		            <th>Created By</th>
-		        </tr>
-		    </thead>
-		    <tbody>
-		        {% for r in records %}
-		        <tr>
-		            <td>{{ r.invoice_no }}</td>
-		            <td>{{ r.client_name or '—' }}</td>
-		            <td>{{ "%.2f"|format(r.subtotal) }}</td>
-		            <td>{{ "%.2f"|format(r.vat) }}</td>
-		            <td>{{ "%.2f"|format(r.total) }}</td>
-		            <td>{{ r.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-		            <td>{{ r.user_name }}</td>
-		        </tr>
-		        {% endfor %}
-		    </tbody>
-		</table>
+        {% if records %}
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Invoice No</th>
+                    <th>Client</th>
+                    <th>Subtotal</th>
+                    <th>VAT</th>
+                    <th>Total Incl VAT</th>
+                    <th>Created At</th>
+                    <th>Created By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.invoice_no }}</td>
+                    <td>{{ r.client_name or '—' }}</td>
+                    <td>{{ "%.2f"|format(r.subtotal) }}</td>
+                    <td>{{ "%.2f"|format(r.vat) }}</td>
+                    <td>{{ "%.2f"|format(r.total) }}</td>
+                    <td>{{ r.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                    <td>{{ r.user_name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-		<div class="totals-summary">
-		    <div class="total-card">Subtotal R{{ "%.2f"|format(totals.total_subtotal) }}</div>
-		    <div class="total-card">VAT R{{ "%.2f"|format(totals.total_vat) }}</div>
-		    <div class="total-card">Total Incl VAT R{{ "%.2f"|format(totals.total_incl_vat) }}</div>
-		</div>
-		{% else %}
-		<p class="no-records">No records found for the selected range.</p>
-		{% endif %}
+        <div class="totals-summary">
+            <div class="total-card">Subtotal R{{ "%.2f"|format(totals.total_subtotal) }}</div>
+            <div class="total-card">VAT R{{ "%.2f"|format(totals.total_vat) }}</div>
+            <div class="total-card">Total Incl VAT R{{ "%.2f"|format(totals.total_incl_vat) }}</div>
+        </div>
 
+        {% else %}
+        <p class="no-records">No records found for the selected range.</p>
+        {% endif %}
     </div>
 </div>
 
-
-
-
-
 <style>
+    /* --- HEADER --- */
+    .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    .btn-back {
+        padding: 8px 14px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #4b6cff, #9b5bff);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.25s ease;
+        box-shadow: 0 0 8px rgba(75,108,255,0.3);
+    }
+
+    .btn-back:hover {
+        background: linear-gradient(135deg, #5d7cff, #a56cff);
+        box-shadow: 0 0 12px rgba(75,108,255,0.5);
+    }
+
     /* --- FILTER FORM LAYOUT --- */
     .search-form {
         margin-bottom: 25px;
@@ -114,41 +175,32 @@
         outline: none;
     }
 
-    /* --- BUTTON BASE STYLE --- */
+    /* --- BUTTONS --- */
     .btn-primary,
     .btn-accent,
-	.btn-visuals {
-	    padding: 10px 14px;
-	    border-radius: 10px;
-	    background: linear-gradient(135deg, #4b6cff, #9b5bff);
-	    color: #fff;
-	    font-size: 14px;
-	    font-weight: 600;
-	    text-decoration: none;
-	    transition: all 0.25s ease;
-	    cursor: pointer;
-	    display: inline-block;
-	    box-shadow: 0 0 8px rgba(75,108,255,0.3);
-	}
+    .btn-print,
+    .btn-visuals {
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.25s ease;
+        cursor: pointer;
+        display: inline-block;
+    }
 
-	.btn-visuals:hover {
-	    background: linear-gradient(135deg, #5d7cff, #a56cff);
-	    box-shadow: 0 0 12px rgba(75,108,255,0.5);
-	}
-
-
-    /* --- FILTER BUTTON --- */
     .btn-primary {
         background: linear-gradient(135deg, #4b6cff, #9b5bff);
         color: #fff;
         border: none;
+        box-shadow: 0 0 8px rgba(75,108,255,0.3);
     }
 
     .btn-primary:hover {
         box-shadow: 0 0 10px rgba(75,108,255,0.4);
     }
 
-    /* --- EXPORT BUTTON --- */
     .btn-accent {
         background: rgba(75,108,255,0.15);
         color: #4b6cff;
@@ -159,47 +211,169 @@
         color: #4b6cff;
     }
 
-    /* --- VISUALS BUTTON --- */
+    .btn-print {
+        background: rgba(255,165,0,0.25);
+        color: #ffa500;
+    }
+
+    .btn-print:hover {
+        background: rgba(255,165,0,0.35);
+        color: #ffb733;
+    }
+
     .btn-visuals {
-        background: rgba(255,255,255,0.15);
-        color: var(--text);
+        background: linear-gradient(135deg, #4b6cff, #9b5bff);
+        color: #fff;
+        box-shadow: 0 0 8px rgba(75,108,255,0.3);
     }
 
     .btn-visuals:hover {
-        background: rgba(75,108,255,0.25);
-        color: #4b6cff;
+        background: linear-gradient(135deg, #5d7cff, #a56cff);
+        box-shadow: 0 0 12px rgba(75,108,255,0.5);
     }
-	
-	.records-table {
-	    width: 100%;
-	    border-collapse: collapse;
-	    margin-top: 20px;
+
+    /* --- TABLE --- */
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        font-size: 14px;
+    }
+
+    .records-table th, .records-table td {
+        padding: 10px;
+        border-bottom: 1px solid rgba(180,190,255,0.3);
+        text-align: left;
+        transition: background 0.25s ease;
+    }
+
+    .records-table th {
+        background: rgba(75,108,255,0.1);
+        color: var(--text);
+    }
+
+    .records-table tr:hover {
+        background: rgba(75,108,255,0.08);
+    }
+
+    /* --- TOTALS --- */
+    .totals-summary {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .total-card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 12px 18px;
+        box-shadow: 0 0 8px rgba(75,108,255,0.2);
+        font-weight: 600;
+    }
+
+    .no-records {
+        margin-top: 20px;
+        color: var(--text-muted);
+    }
+	.btn-customize {
+	    padding: 10px 14px;
+	    border-radius: 10px;
+	    background: rgba(0, 200, 255, 0.25);
+	    color: #00c8ff;
 	    font-size: 14px;
+	    font-weight: 600;
+	    text-decoration: none;
+	    transition: all 0.25s ease;
+	    cursor: pointer;
 	}
-	.records-table th, .records-table td {
+
+	.btn-customize:hover {
+	    background: rgba(0, 200, 255, 0.35);
+	    color: #33d6ff;
+	}
+
+	.btn-reset {
+	    padding: 10px 14px;
+	    border-radius: 10px;
+	    background: rgba(255, 80, 80, 0.25);
+	    color: #ff5050;
+	    font-size: 14px;
+	    font-weight: 600;
+	    text-decoration: none;
+	    transition: all 0.25s ease;
+	    cursor: pointer;
+	}
+
+	.btn-reset:hover {
+	    background: rgba(255, 80, 80, 0.35);
+	    color: #ff7373;
+	}
+	.dropdown {
+	    position: relative;
+	    display: inline-block;
+	}
+
+	.dropdown-content {
+	    display: none;
+	    position: absolute;
+
+	    /* FIX: Solid white background */
+	    background: #ffffff;
+
+	    border: 1px solid rgba(75,108,255,0.4);
+	    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+	    border-radius: 10px;
 	    padding: 10px;
-	    border-bottom: 1px solid rgba(180,190,255,0.3);
-	    text-align: left;
+	    z-index: 100;
+	    min-width: 180px;
 	}
-	.records-table th {
-	    background: rgba(75,108,255,0.1);
-	    color: var(--text);
+
+	.dropdown:hover .dropdown-content {
+	    display: block;
+	}
+
+	.dropdown-content a {
+	    display: block;
+	    padding: 10px 14px;
+	    text-decoration: none;
+
+	    /* FIX: Dark text for white background */
+	    color: #333;
+
+	    font-size: 14px;
+	    border-radius: 8px;
+	    transition: all 0.25s ease;
+	}
+
+	.dropdown-content a:hover {
+	    background: rgba(75,108,255,0.15);
+	    color: #4b6cff;
 	}
 	.totals-summary {
+	    position: fixed;
+	    bottom: 0;
+	    left: 0;
+	    width: 100%;
 	    display: flex;
+	    justify-content: center;
 	    gap: 15px;
-	    margin-top: 20px;
+	    padding: 12px 0;
+	    background: #ffffff; /* solid white background */
+	    box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+	    border-top: 1px solid rgba(180,190,255,0.3);
+	    z-index: 999; /* ensures it stays above other elements */
 	}
+
 	.total-card {
-	    background: var(--card-bg);
+	    background: #ffffff;
 	    border-radius: 10px;
 	    padding: 12px 18px;
-	    box-shadow: 0 0 8px rgba(75,108,255,0.2);
-	    font-weight: 600;
+	    box-shadow: 0 0 8px rgba(75,108,255,0.2);
+	    font-weight: 600;
+	    color: #000;
 	}
-	.no-records {
-	    margin-top: 20px;
-	    color: var(--text-muted);
-	}
+
+
+
 
 </style>
