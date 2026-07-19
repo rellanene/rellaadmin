@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoicing</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+            padding: 25px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        .chart-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            height: 400px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        thead {
+            background: #4b6cff;
+            color: #fff;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tbody tr:hover {
+            background: #eef2ff;
+        }
+
+        .status {
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 4px 8px;
+        }
+
+        .status.Pending { background: #ffe5e5; color: #d9534f; }
+        .status.Partial { background: #fff3cd; color: #856404; }
+        .status.Paid { background: #e2f0d9; color: #28a745; }
+        .status.Overdue { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+
+<body>
+    <div class="page-title">Invoicing Dashboard</div>
+
+    <!-- CHART -->
+    <div class="chart-container">
+        <div class="chart-title">Invoice Payment Status Overview</div>
+        <canvas id="invoiceChart"></canvas>
+    </div>
+
+    <!-- TABLE -->
+    <table>
+        <thead>
+            <tr>
+                <th>Invoice No</th>
+                <th>Client</th>
+                <th>Amount Due</th>
+                <th>Amount Paid</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in invoices %}
+            <tr>
+                <td>{{ i.invoice_no }}</td>
+                <td>{{ i.client_name }}</td>
+                <td>R{{ "%.2f"|format(i.amount_due) }}</td>
+                <td>R{{ "%.2f"|format(i.amount_paid) }}</td>
+                <td>R{{ "%.2f"|format(i.balance) }}</td>
+                <td><span class="status {{ i.payment_status }}">{{ i.payment_status }}</span></td>
+                <td>{{ i.due_date }}</td>
+                <td>{{ i.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- CHART SCRIPT -->
+    <script>
+        const ctx = document.getElementById('invoiceChart').getContext('2d');
+        const statuses = {{ invoices | map(attribute='payment_status') | list | tojson }};
+        const counts = statuses.reduce((acc, s) => {
+            acc[s] = (acc[s] || 0) + 1;
+            return acc;
+        }, {});
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(counts),
+                datasets: [{
+                    data: Object.values(counts),
+                    backgroundColor: ['#4b6cff', '#ff9f40', '#36a2eb', '#ff6384'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 14 } }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

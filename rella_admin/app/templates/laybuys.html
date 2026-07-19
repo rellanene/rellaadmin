@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lay‑Buy Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ============================
+           LAY‑BUY DASHBOARD STYLING
+           ============================ */
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+            padding: 25px;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+		.chart-container {
+		    background: #fff;
+		    padding: 30px;
+		    border-radius: 14px;
+		    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+		    margin-bottom: 40px;
+		    width: 100%;
+		    box-sizing: border-box;
+		    display: flex;
+		    flex-direction: column;
+		    align-items: center;
+		}
+		
+		.chart-title {
+		    font-size: 20px;
+		    font-weight: 600;
+		    margin-bottom: 25px;
+		    align-self: flex-start;
+		    color: #1a1a1a;
+		}
+		
+		.chart-container canvas {
+		    width: 100% !important;
+		    height: 60vh !important; /* fills 60% of viewport height */
+		    max-height: 600px;        /* prevents oversizing */
+}
+
+
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        thead {
+            background: #4b6cff;
+            color: #fff;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tbody tr:hover {
+            background: #eef2ff;
+        }
+
+        /* Status Badges */
+        .status {
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 4px 8px;
+            text-transform: capitalize;
+        }
+
+        .status.active { background: #e2f0d9; color: #28a745; }
+        .status.archived { background: #fff3cd; color: #856404; }
+        .status.cancelled { background: #f8d7da; color: #721c24; }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            th, td { font-size: 12px; padding: 8px; }
+            .page-title { font-size: 20px; }
+            .chart-container { min-height: 300px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-title">Lay‑Buy Dashboard</div>
+
+    <!-- CHART -->
+    <div class="chart-container">
+        <div class="chart-title">Lay‑Buy Status Overview</div>
+        <canvas id="laybuyChart"></canvas>
+    </div>
+
+    <!-- TABLE -->
+    <table>
+        <thead>
+            <tr>
+                <th>Lay‑Buy No</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th>Start Date</th>
+                <th>Expiry Date</th>
+                <th>Total Amount</th>
+                <th>Paid Amount</th>
+                <th>Balance</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in laybuys %}
+            <tr>
+                <td>{{ l.laybuy_number }}</td>
+                <td>{{ l.client_name }}</td>
+                <td><span class="status {{ l.status }}">{{ l.status }}</span></td>
+                <td>{{ l.start_date }}</td>
+                <td>{{ l.expiry_date }}</td>
+                <td>R{{ "%.2f"|format(l.total_amount) }}</td>
+                <td>R{{ "%.2f"|format(l.paid_amount) }}</td>
+                <td>R{{ "%.2f"|format(l.balance) }}</td>
+                <td>{{ l.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- CHART SCRIPT -->
+<script>
+    const canvas = document.getElementById("laybuyChart");
+    const ctx = canvas.getContext("2d");
+
+    const statuses = {{ laybuys | map(attribute='status') | list | tojson }};
+    const counts = statuses.reduce((acc, s) => {
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+    }, {});
+
+    // Create a responsive chart that fills space clearly
+    const laybuyChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+            labels: Object.keys(counts),
+            datasets: [{
+                data: Object.values(counts),
+                backgroundColor: ["#28a745", "#ff9f40", "#ff6384"],
+                borderColor: "#fff",
+                borderWidth: 3,
+                hoverOffset: 15,
+                cutout: "55%" // balanced ring thickness
+            }]
+        },
+        options: {
+            responsive: true,          // ✅ allow full width scaling
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: {
+                        font: { size: 14 },
+                        color: "#333",
+                        boxWidth: 20,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: "#333",
+                    titleColor: "#fff",
+                    bodyColor: "#fff",
+                    cornerRadius: 6
+                }
+            },
+            layout: {
+                padding: 20
+            }
+        }
+    });
+</script>
+
+
+
+</body>
+</html>

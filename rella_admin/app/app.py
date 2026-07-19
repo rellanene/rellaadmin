@@ -649,6 +649,55 @@ def records_visuals():
         quick=quick
     )
 
+#-----INVOICE CARD-------#
+#------------------------#
+@app.route('/invoicing')
+@require_login
+def invoicing():
+    sql = """
+        SELECT 
+            i.invoice_no,
+            c.name AS client_name,
+            i.amount_due,
+            i.amount_paid,
+            i.balance,
+            i.payment_status,
+            i.due_date,
+            i.created_at,
+            u.username AS created_by
+        FROM invoices i
+        LEFT JOIN clients c ON i.client_id = c.id
+        LEFT JOIN users u ON i.created_by = u.id
+        ORDER BY i.created_at DESC
+    """
+    invoices = query_all(sql)
+
+    return render_template('invoicing.html', invoices=invoices)
+
+@app.route('/laybuys')
+@require_login
+def laybuys():
+    # --- Fetch lay-buy summary ---
+    sql = """
+        SELECT 
+            l.id,
+            c.name AS client_name,
+            l.laybuy_number,
+            l.status,
+            l.start_date,
+            l.expiry_date,
+            l.total_amount,
+            l.paid_amount,
+            (l.total_amount - l.paid_amount) AS balance,
+            l.created_at
+        FROM client_laybuys l
+        LEFT JOIN clients c ON l.client_id = c.id
+        ORDER BY l.created_at DESC
+    """
+    laybuys = query_all(sql)
+
+    return render_template('laybuys.html', laybuys=laybuys)
+
 
 
 
