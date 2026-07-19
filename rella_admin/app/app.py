@@ -262,7 +262,6 @@ def records():
 def print_records():
     from datetime import datetime, date, timedelta
     from io import BytesIO
-    from flask import Response
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
 
@@ -421,7 +420,6 @@ def export_records_csv():
     from datetime import datetime, date, timedelta
     import csv
     from io import StringIO
-    from flask import Response
 
     q = request.args.get('q', '').strip()
     start = request.args.get('start')
@@ -530,11 +528,32 @@ def export_records_csv():
 @app.route('/records/visuals')
 @require_login
 def records_visuals():
-    q = request.args.get('q', '')
+    q = request.args.get('q', '').strip()
     start = request.args.get('start')
     end = request.args.get('end')
+    quick = request.args.get('quick')
 
-    # Same filtering logic as /records
+    from datetime import date, timedelta
+    today = date.today()
+
+    # --- Quick filters ---
+    if quick == "today":
+        start = today
+        end = today
+    elif quick == "yesterday":
+        start = today - timedelta(days=1)
+        end = today - timedelta(days=1)
+    elif quick == "last7":
+        start = today - timedelta(days=7)
+        end = today
+    elif quick == "current_week":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    elif quick == "current_month":
+        start = today.replace(day=1)
+        end = today
+
+    # --- Sales over time ---
     sql = """
         SELECT DATE(s.created_at) AS date, SUM(s.total) AS total_sales
         FROM sales s
@@ -553,10 +572,60 @@ def records_visuals():
         params.append(end)
 
     sql += " GROUP BY DATE(s.created_at) ORDER BY DATE(s.created_at)"
-
     data = query_all(sql, params)
 
-    return render_template('records_visuals.html', data=data)
+    # --- Sales per client ---
+    sql_clients = """
+        SELECT c.name AS product, SUM(s.total) AS total
+        FROM sales s
+        LEFT JOIN clients c ON s.client_id = c.id
+        WHERE 1=1
+    """
+    params_clients = []
+
+    if q:
+        sql_clients += " AND s.invoice_no LIKE %s"
+        params_clients.append(f"%{q}%")
+    if start:
+        sql_clients += " AND DATE(s.created_at) >= %s"
+        params_clients.append(start)
+    if end:
+        sql_clients += " AND DATE(s.created_at) <= %s"
+        params_clients.append(end)
+
+    sql_clients += " GROUP BY c.name ORDER BY total DESC"
+    product_sales = query_all(sql_clients, params_clients)
+
+    # --- Ensure product_sales is always defined ---
+    if not product_sales:
+        product_sales = []
+
+    # --- Normalize data for Chart.js ---
+    def normalize(rows, key):
+        clean = []
+        for r in rows:
+            value = r.get(key)
+            try:
+                value = float(value or 0)
+            except (TypeError, ValueError):
+                value = 0
+            clean.append({**r, key: value})
+        return clean
+
+    data = normalize(data, 'total_sales')
+    product_sales = normalize(product_sales, 'total')
+
+    return render_template(
+        'records_visuals.html',
+        data=data,
+        product_sales=product_sales,
+        start=start,
+        end=end,
+        q=q,
+        quick=quick
+    )
+
+
 
 
 

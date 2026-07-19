@@ -1,32 +1,186 @@
-<canvas id="salesChart" height="120"></canvas>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Visuals</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const ctx = document.getElementById('salesChart').getContext('2d');
-const chartData = {
-  labels: {{ data | map(attribute='date') | list | tojson }},
-  datasets: [{
-    label: 'Total Sales',
-    data: {{ data | map(attribute='total_sales') | list | tojson }},
-    backgroundColor: 'rgba(75,108,255,0.4)',
-    borderColor: '#4b6cff',
-    borderWidth: 2,
-    fill: true,
-    tension: 0.3
-  }]
-};
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+            padding: 20px;
+        }
 
-new Chart(ctx, {
-  type: 'line',
-  data: chartData,
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: true, position: 'bottom' }
-    },
-    scales: {
-      y: { beginAtZero: true }
-    }
-  }
-});
-</script>
+        .chart-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            height: 400px; /* fixed height */
+        }
+
+        .chart-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .insights-box {
+            margin-top: 25px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .back-btn-container {
+            text-align: right;
+            margin-top: 30px;
+        }
+
+        .back-btn {
+            background: #4b6cff;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SALES OVER TIME -->
+    <div class="chart-container">
+        <div class="chart-title">Sales Over Time</div>
+        <canvas id="salesChart"></canvas>
+    </div>
+
+    <!-- SALES PER CLIENT -->
+    <div class="chart-container">
+        <div class="chart-title">Total Sales Per Client</div>
+        <canvas id="productChart"></canvas>
+    </div>
+
+    <!-- INSIGHTS -->
+    <div class="insights-box">
+        <h3>Insights</h3>
+
+        <p><strong>Sales Trend:</strong>
+            {% if data %}
+                {% set top_day = (data | sort(attribute='total_sales') | last) %}
+                Highest sales day: <strong>{{ top_day.date }}</strong>
+                with <strong>R{{ "%.2f"|format(top_day.total_sales) }}</strong>.
+            {% else %}
+                No sales data available.
+            {% endif %}
+        </p>
+
+        <p><strong>Top Client:</strong>
+            {% if product_sales %}
+                {% set top_product = (product_sales | sort(attribute='total') | last) %}
+                Best‑performing client: <strong>{{ top_product.product }}</strong>
+                with <strong>R{{ "%.2f"|format(top_product.total) }}</strong>.
+            {% else %}
+                No client sales data available.
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- BACK BUTTON -->
+    <div class="back-btn-container">
+        <a href="{{ url_for('records') }}" class="back-btn">Back</a>
+    </div>
+
+    <!-- CHART SCRIPTS -->
+    <script>
+        /* ============================
+           SALES OVER TIME (LINE CHART)
+           ============================ */
+
+        const salesCtx = document.getElementById('salesChart').getContext('2d');
+
+        const salesLabels = {{ data | map(attribute='date') | list | tojson }};
+        const rawSalesValues = {{ data | map(attribute='total_sales') | list | tojson }};
+
+        const salesValues = rawSalesValues.map(v => {
+            const n = Number(v);
+            return isNaN(n) ? 0 : n;
+        });
+
+        if (salesValues.length === 0) {
+            salesLabels.push("No Data");
+            salesValues.push(0);
+        }
+
+        new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: salesLabels,
+                datasets: [{
+                    label: 'Total Sales',
+                    data: salesValues,
+                    backgroundColor: 'rgba(75,108,255,0.25)',
+                    borderColor: '#4b6cff',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        /* ============================
+           SALES PER CLIENT (BAR CHART)
+           ============================ */
+
+        const productCtx = document.getElementById('productChart').getContext('2d');
+
+        let productLabels = {{ (product_sales or []) | map(attribute='product') | list | tojson }};
+        let rawProductTotals = {{ (product_sales or []) | map(attribute='total') | list | tojson }};
+
+        let productTotals = rawProductTotals.map(v => {
+            const n = Number(v);
+            return isNaN(n) ? 0 : n;
+        });
+
+        if (!productLabels || productLabels.length === 0) {
+            productLabels = ["No Data"];
+            productTotals = [0];
+        }
+
+        new Chart(productCtx, {
+            type: 'bar',
+            data: {
+                labels: productLabels,
+                datasets: [{
+                    label: 'Total Sales per Client',
+                    data: productTotals,
+                    backgroundColor: 'rgba(255, 159, 64, 0.4)',
+                    borderColor: '#ff9f40',
+                    borderWidth: 2,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
