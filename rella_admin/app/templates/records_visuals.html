@@ -49,6 +49,13 @@
             text-decoration: none;
             font-weight: 600;
         }
+		.back-btn-container {
+		    position: fixed;
+		    bottom: 20px;
+		    right: 20px;
+		    z-index: 999;
+		}
+
     </style>
 </head>
 
@@ -65,6 +72,13 @@
         <div class="chart-title">Total Sales Per Client</div>
         <canvas id="productChart"></canvas>
     </div>
+	
+	<!-- SALES PER PRODUCT -->
+	<div class="chart-container">
+	    <div class="chart-title">Most Sold Products</div>
+	    <canvas id="productQtyChart"></canvas>
+	</div>
+
 
     <!-- INSIGHTS -->
     <div class="insights-box">
@@ -89,6 +103,17 @@
                 No client sales data available.
             {% endif %}
         </p>
+		
+		<p><strong>Top Product:</strong>
+		    {% if product_sales_qty %}
+		        {% set top_product_qty = (product_sales_qty | sort(attribute='total_sold') | last) %}
+		        Most sold product: <strong>{{ top_product_qty.product }}</strong>
+		        with <strong>{{ "%.0f"|format(top_product_qty.total_sold) }}</strong> units sold.
+		    {% else %}
+		        No product sales data available.
+		    {% endif %}
+		</p>
+
     </div>
 
     <!-- BACK BUTTON -->
@@ -180,6 +205,51 @@
                 }
             }
         });
+		
+		/* ============================
+		   MOST SOLD PRODUCTS (BAR CHART)
+		   ============================ */
+
+		const productQtyCtx = document.getElementById('productQtyChart').getContext('2d');
+
+		let productQtyLabels = {{ (product_sales_qty or []) | map(attribute='product') | list | tojson }};
+		let rawProductQtyTotals = {{ (product_sales_qty or []) | map(attribute='total_sold') | list | tojson }};
+
+		let productQtyTotals = rawProductQtyTotals.map(v => {
+		    const n = Number(v);
+		    return isNaN(n) ? 0 : n;
+		});
+
+		if (!productQtyLabels || productQtyLabels.length === 0) {
+		    productQtyLabels = ["No Data"];
+		    productQtyTotals = [0];
+		}
+
+		new Chart(productQtyCtx, {
+		    type: 'bar',
+		    data: {
+		        labels: productQtyLabels,
+		        datasets: [{
+		            label: 'Quantity Sold per Product',
+		            data: productQtyTotals,
+		            backgroundColor: 'rgba(54, 162, 235, 0.4)',
+		            borderColor: '#36a2eb',
+		            borderWidth: 2,
+		            borderRadius: 6
+		        }]
+		    },
+		    options: {
+		        responsive: true,
+		        maintainAspectRatio: false,
+		        scales: {
+		            y: {
+		                beginAtZero: true,
+		                suggestedMax: Math.max(...productQtyTotals) * 1.2
+		            }
+		        }
+		    }
+		});
+
     </script>
 
 </body>

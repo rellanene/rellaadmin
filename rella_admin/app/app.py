@@ -318,6 +318,9 @@ def print_records():
     sql += " ORDER BY s.created_at DESC"
     rows = query_all(sql, params)
 
+    # --- Calculate grand total (Total Incl VAT) ---
+    grand_total = sum(float(r["total"] or 0) for r in rows)
+
     # --- PDF Generation ---
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=letter)
@@ -329,9 +332,10 @@ def print_records():
     pdf.setFont("Helvetica", 10)
     pdf.line(30, height - 55, width - 30, height - 55)
 
-    # --- Filter range + timestamp ---
+    # --- Filter range + timestamp + totals ---
     printed_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     pdf.drawString(30, height - 70, f"Filter Range: {start or '—'}  to  {end or '—'}")
+    pdf.drawString(250, height - 70, f"Totals: R{grand_total:,.2f}")  # 👈 Added line
     pdf.drawRightString(width - 30, height - 70, f"Printed on: {printed_on}")
 
     # --- Column titles ---
@@ -345,7 +349,7 @@ def print_records():
     pdf.drawRightString(500, y, "Created At")
     pdf.drawRightString(580, y, "Created By")
     pdf.line(30, y - 5, width - 30, y - 5)
-    
+
     # --- Table rows ---
     pdf.setFont("Helvetica", 9)
     y -= 20
@@ -357,7 +361,7 @@ def print_records():
         total = f"{r['total']:.2f}" if r["total"] is not None else "0.00"
         created_at = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "—"
         user_name = str(r["user_name"] or "—")
-    
+
         pdf.drawString(30, y, invoice_no)
         pdf.drawString(160, y, client_name)
         pdf.drawRightString(280, y, subtotal)
@@ -366,13 +370,11 @@ def print_records():
         pdf.drawRightString(500, y, created_at)
         pdf.drawRightString(580, y, user_name)
         y -= 18
-    
+
         # --- Page break ---
         if y < 50:
-            # --- Footer (always draw page number) ---
             pdf.setFont("Helvetica-Bold", 9)
             pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
-
             pdf.showPage()
             pdf.setFont("Helvetica-Bold", 18)
             pdf.drawString(30, height - 50, "Sales Records Report (continued)")
@@ -391,25 +393,24 @@ def print_records():
             pdf.setFont("Helvetica", 9)
             y -= 20
 
-
-
     # --- Footer ---
     pdf.setFont("Helvetica-Bold", 9)
     pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
     
-    # --- Footer (always draw page number) ---
-    pdf.setFont("Helvetica-Bold", 9)
-    pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
-
-
     pdf.save()
     buffer.seek(0)
-
+    
+    # --- Dynamic filename ---
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"sales_report_{timestamp}.pdf"
+    
     return Response(
         buffer,
         mimetype="application/pdf",
-        headers={"Content-Disposition": "inline; filename=records.pdf"}
+        headers={"Content-Disposition": f"inline; filename={filename}"}
     )
+
+
 
 
 
@@ -596,9 +597,30 @@ def records_visuals():
     sql_clients += " GROUP BY c.name ORDER BY total DESC"
     product_sales = query_all(sql_clients, params_clients)
 
-    # --- Ensure product_sales is always defined ---
+    # --- Most sold products (from movements table) ---
+    sql_products = """
+        SELECT p.name AS product, SUM(m.qty) AS total_sold
+        FROM movements m
+        LEFT JOIN products p ON m.product_id = p.id
+        WHERE m.movement_type = 'sale'
+    """
+    params_products = []
+
+    if start:
+        sql_products += " AND DATE(m.created_at) >= %s"
+        params_products.append(start)
+    if end:
+        sql_products += " AND DATE(m.created_at) <= %s"
+        params_products.append(end)
+
+    sql_products += " GROUP BY p.name ORDER BY total_sold DESC"
+    product_sales_qty = query_all(sql_products, params_products)
+
+    # --- Ensure lists are always defined ---
     if not product_sales:
         product_sales = []
+    if not product_sales_qty:
+        product_sales_qty = []
 
     # --- Normalize data for Chart.js ---
     def normalize(rows, key):
@@ -614,11 +636,13 @@ def records_visuals():
 
     data = normalize(data, 'total_sales')
     product_sales = normalize(product_sales, 'total')
+    product_sales_qty = normalize(product_sales_qty, 'total_sold')
 
     return render_template(
         'records_visuals.html',
         data=data,
         product_sales=product_sales,
+        product_sales_qty=product_sales_qty,
         start=start,
         end=end,
         q=q,
