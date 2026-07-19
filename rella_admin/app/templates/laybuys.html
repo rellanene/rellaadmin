@@ -6,10 +6,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* ============================
-           LAY‑BUY DASHBOARD STYLING
-           ============================ */
-
         body {
             font-family: "Segoe UI", Arial, sans-serif;
             background: #f5f6fa;
@@ -24,36 +20,41 @@
             color: #333;
         }
 
-		.chart-container {
-		    background: #fff;
-		    padding: 30px;
-		    border-radius: 14px;
-		    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-		    margin-bottom: 40px;
-		    width: 100%;
-		    box-sizing: border-box;
-		    display: flex;
-		    flex-direction: column;
-		    align-items: center;
-		}
-		
-		.chart-title {
-		    font-size: 20px;
-		    font-weight: 600;
-		    margin-bottom: 25px;
-		    align-self: flex-start;
-		    color: #1a1a1a;
-		}
-		
-		.chart-container canvas {
-		    width: 100% !important;
-		    height: 60vh !important; /* fills 60% of viewport height */
-		    max-height: 600px;        /* prevents oversizing */
-}
+        /* FLEX ROW FOR TWO CHARTS */
+        .charts-row {
+            display: flex;
+            gap: 25px;
+            width: 100%;
+            margin-bottom: 40px;
+        }
 
+        .chart-container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            width: 50%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
+        .chart-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            align-self: flex-start;
+            color: #1a1a1a;
+        }
 
-        /* Table Styling */
+        .chart-container canvas {
+            width: 100% !important;
+            height: 50vh !important;
+            max-height: 500px;
+        }
+
+        /* TABLE */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -83,7 +84,6 @@
             background: #eef2ff;
         }
 
-        /* Status Badges */
         .status {
             font-weight: 600;
             border-radius: 6px;
@@ -95,22 +95,36 @@
         .status.archived { background: #fff3cd; color: #856404; }
         .status.cancelled { background: #f8d7da; color: #721c24; }
 
-        /* Responsive Adjustments */
         @media (max-width: 768px) {
-            th, td { font-size: 12px; padding: 8px; }
-            .page-title { font-size: 20px; }
-            .chart-container { min-height: 300px; }
+            .charts-row {
+                flex-direction: column;
+            }
+            .chart-container {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
 <body>
+
     <div class="page-title">Lay‑Buy Dashboard</div>
 
-    <!-- CHART -->
-    <div class="chart-container">
-        <div class="chart-title">Lay‑Buy Status Overview</div>
-        <canvas id="laybuyChart"></canvas>
+    <!-- TWO CHARTS SIDE BY SIDE -->
+    <div class="charts-row">
+
+        <!-- CHART 1 -->
+        <div class="chart-container">
+            <div class="chart-title">Lay‑Buy Status Overview</div>
+            <canvas id="laybuyChart"></canvas>
+        </div>
+
+        <!-- CHART 2 -->
+        <div class="chart-container">
+            <div class="chart-title">Amount Paid vs Amount Remaining</div>
+            <canvas id="amountChart"></canvas>
+        </div>
+
     </div>
 
     <!-- TABLE -->
@@ -145,10 +159,12 @@
         </tbody>
     </table>
 
-    <!-- CHART SCRIPT -->
+    <!-- CHART SCRIPTS -->
 <script>
-    const canvas = document.getElementById("laybuyChart");
-    const ctx = canvas.getContext("2d");
+    /* -------------------------
+       CHART 1: STATUS OVERVIEW
+       ------------------------- */
+    const ctx1 = document.getElementById("laybuyChart").getContext("2d");
 
     const statuses = {{ laybuys | map(attribute='status') | list | tojson }};
     const counts = statuses.reduce((acc, s) => {
@@ -156,8 +172,7 @@
         return acc;
     }, {});
 
-    // Create a responsive chart that fills space clearly
-    const laybuyChart = new Chart(ctx, {
+    new Chart(ctx1, {
         type: "doughnut",
         data: {
             labels: Object.keys(counts),
@@ -167,39 +182,56 @@
                 borderColor: "#fff",
                 borderWidth: 3,
                 hoverOffset: 15,
-                cutout: "55%" // balanced ring thickness
+                cutout: "55%"
             }]
         },
         options: {
-            responsive: true,          // ✅ allow full width scaling
+            responsive: true,
             maintainAspectRatio: false,
             animation: false,
             plugins: {
                 legend: {
                     position: "bottom",
-                    labels: {
-                        font: { size: 14 },
-                        color: "#333",
-                        boxWidth: 20,
-                        padding: 15
-                    }
-                },
-                tooltip: {
-                    enabled: true,
-                    backgroundColor: "#333",
-                    titleColor: "#fff",
-                    bodyColor: "#fff",
-                    cornerRadius: 6
+                    labels: { font: { size: 14 }, color: "#333" }
                 }
-            },
-            layout: {
-                padding: 20
+            }
+        }
+    });
+
+    /* -------------------------
+       CHART 2: AMOUNT PIE
+       ------------------------- */
+
+    const ctx2 = document.getElementById("amountChart").getContext("2d");
+
+    const totalAmount = {{ laybuys | sum(attribute='total_amount') }};
+    const paidAmount = {{ laybuys | sum(attribute='paid_amount') }};
+    const balanceAmount = totalAmount - paidAmount;
+
+    new Chart(ctx2, {
+        type: "pie",
+        data: {
+            labels: ["Paid Amount", "Remaining Amount"],
+            datasets: [{
+                data: [paidAmount, balanceAmount],
+                backgroundColor: ["#4b6cff", "#ff6384"],
+                borderColor: "#fff",
+                borderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: { font: { size: 14 }, color: "#333" }
+                }
             }
         }
     });
 </script>
-
-
 
 </body>
 </html>
