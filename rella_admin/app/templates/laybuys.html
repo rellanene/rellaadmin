@@ -20,7 +20,25 @@
             color: #333;
         }
 
-        /* FLEX ROW FOR TWO CHARTS */
+        /* BACK BUTTON */
+        .btn-back {
+            position: fixed;
+            top: 20px;
+            right: 25px;
+            background: linear-gradient(135deg, #6a5af9, #836fff);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            transition: 0.2s;
+        }
+        .btn-back:hover { opacity: 0.85; }
+
+        /* CHARTS ROW */
         .charts-row {
             display: flex;
             gap: 25px;
@@ -54,6 +72,81 @@
             max-height: 500px;
         }
 
+        /* FILTER FORM */
+        .search-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* UNIFIED BUTTON STYLE */
+        .btn-customize,
+        .btn-primary,
+        .btn-reset,
+        .btn-accent,
+        .btn-print,
+        .btn-visuals {
+            background: linear-gradient(135deg, #6a5af9, #836fff);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            transition: 0.2s;
+        }
+
+        .btn-customize:hover,
+        .btn-primary:hover,
+        .btn-reset:hover,
+        .btn-accent:hover,
+        .btn-print:hover,
+        .btn-visuals:hover {
+            opacity: 0.85;
+            box-shadow: 0 4px 12px rgba(100,70,255,0.25);
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            min-width: 160px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 6px;
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: #333;
+            padding: 10px 12px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .input-field {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
         /* TABLE */
         table {
             width: 100%;
@@ -76,13 +169,8 @@
             font-size: 14px;
         }
 
-        tbody tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-
-        tbody tr:hover {
-            background: #eef2ff;
-        }
+        tbody tr:nth-child(even) { background: #f9f9f9; }
+        tbody tr:hover { background: #eef2ff; }
 
         .status {
             font-weight: 600;
@@ -96,36 +184,65 @@
         .status.cancelled { background: #f8d7da; color: #721c24; }
 
         @media (max-width: 768px) {
-            .charts-row {
-                flex-direction: column;
-            }
-            .chart-container {
-                width: 100%;
-            }
+            .charts-row { flex-direction: column; }
+            .chart-container { width: 100%; }
         }
     </style>
 </head>
 
 <body>
 
+    <a href="{{ url_for('dashboard') }}" class="btn-back">Back</a>
     <div class="page-title">Lay‑Buy Dashboard</div>
 
     <!-- TWO CHARTS SIDE BY SIDE -->
     <div class="charts-row">
-
-        <!-- CHART 1 -->
         <div class="chart-container">
             <div class="chart-title">Lay‑Buy Status Overview</div>
             <canvas id="laybuyChart"></canvas>
         </div>
-
-        <!-- CHART 2 -->
         <div class="chart-container">
             <div class="chart-title">Amount Paid vs Amount Remaining</div>
             <canvas id="amountChart"></canvas>
         </div>
-
     </div>
+
+    <!-- FILTER FORM -->
+    <form method="get" class="search-form">
+        <div class="dropdown">
+            <button class="btn-customize">Customize </button>
+            <div class="dropdown-content">
+                <a href="{{ url_for('laybuys', quick='today') }}">Today</a>
+                <a href="{{ url_for('laybuys', quick='yesterday') }}">Yesterday</a>
+                <a href="{{ url_for('laybuys', quick='last7') }}">Last 7 Days</a>
+                <a href="{{ url_for('laybuys', quick='current_week') }}">Current Week</a>
+                <a href="{{ url_for('laybuys', quick='last_week') }}">Last Week</a>
+                <a href="{{ url_for('laybuys', quick='current_month') }}">Current Month</a>
+                <a href="{{ url_for('laybuys', quick='last_month') }}">Last Month</a>
+                <a href="{{ url_for('laybuys', quick='current_year') }}">Current Year</a>
+                <a href="{{ url_for('laybuys', quick='last_year') }}">Last Year</a>
+            </div>
+        </div>
+
+		<input name="q" placeholder="Search by Lay‑Buy number" value="{{ q if q else '' }}" class="input-field">
+        <input name="start" type="date" value="{{ start }}" class="input-field">
+        <input name="end" type="date" value="{{ end }}" class="input-field">
+
+        <button type="submit" class="btn-primary">Filter</button>
+        <a class="btn-reset" href="{{ url_for('laybuys') }}">Reset</a>
+		<a class="btn-accent" 
+		   href="{{ url_for('export_laybuys_csv', q=q, start=start, end=end, quick=quick) }}">
+		   Export CSV
+		</a>
+
+		<a class="btn-print" 
+		   href="{{ url_for('print_laybuys', q=q, start=start, end=end, quick=quick) }}" 
+		   target="_blank">
+		   Print
+		</a>
+
+        
+    </form>
 
     <!-- TABLE -->
     <table>
@@ -147,91 +264,98 @@
             <tr>
                 <td>{{ l.laybuy_number }}</td>
                 <td>{{ l.client_name }}</td>
-                <td><span class="status {{ l.status }}">{{ l.status }}</span></td>
-                <td>{{ l.start_date }}</td>
-                <td>{{ l.expiry_date }}</td>
-                <td>R{{ "%.2f"|format(l.total_amount) }}</td>
-                <td>R{{ "%.2f"|format(l.paid_amount) }}</td>
-                <td>R{{ "%.2f"|format(l.balance) }}</td>
-                <td>{{ l.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+				            <td><span class="status {{ l.status }}">{{ l.status }}</span></td>
+				            <td>{{ l.start_date }}</td>
+				            <td>{{ l.expiry_date }}</td>
+				            <td>R{{ "%.2f"|format(l.total_amount) }}</td>
+				            <td>R{{ "%.2f"|format(l.paid_amount) }}</td>
+				            <td>R{{ "%.2f"|format(l.balance) }}</td>
+				            <td>{{ l.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+				        </tr>
+				        {% endfor %}
+				        </tbody>
+				    </table>
 
-    <!-- CHART SCRIPTS -->
-<script>
-    /* -------------------------
-       CHART 1: STATUS OVERVIEW
-       ------------------------- */
-    const ctx1 = document.getElementById("laybuyChart").getContext("2d");
+				    <!-- CHART SCRIPTS -->
+				    <script>
+				        /* -------------------------
+				           CHART 1: STATUS OVERVIEW
+				           ------------------------- */
+				        const ctx1 = document.getElementById("laybuyChart").getContext("2d");
 
-    const statuses = {{ laybuys | map(attribute='status') | list | tojson }};
-    const counts = statuses.reduce((acc, s) => {
-        acc[s] = (acc[s] || 0) + 1;
-        return acc;
-    }, {});
+				        const statuses = {{ laybuys | map(attribute='status') | list | tojson }};
+				        const counts = statuses.reduce((acc, s) => {
+				            acc[s] = (acc[s] || 0) + 1;
+				            return acc;
+				        }, {});
 
-    new Chart(ctx1, {
-        type: "doughnut",
-        data: {
-            labels: Object.keys(counts),
-            datasets: [{
-                data: Object.values(counts),
-                backgroundColor: ["#28a745", "#ff9f40", "#ff6384"],
-                borderColor: "#fff",
-                borderWidth: 3,
-                hoverOffset: 15,
-                cutout: "55%"
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: {
-                legend: {
-                    position: "bottom",
-                    labels: { font: { size: 14 }, color: "#333" }
-                }
-            }
-        }
-    });
+				        if (Object.keys(counts).length > 0) {
+				            new Chart(ctx1, {
+				                type: "doughnut",
+				                data: {
+				                    labels: Object.keys(counts),
+				                    datasets: [{
+				                        data: Object.values(counts),
+				                        backgroundColor: ["#28a745", "#ff9f40", "#ff6384"],
+				                        borderColor: "#fff",
+				                        borderWidth: 3,
+				                        hoverOffset: 15,
+				                        cutout: "55%"
+				                    }]
+				                },
+				                options: {
+				                    responsive: true,
+				                    maintainAspectRatio: false,
+				                    plugins: {
+				                        legend: {
+				                            position: "bottom",
+				                            labels: { font: { size: 14 }, color: "#333" }
+				                        }
+				                    }
+				                }
+				            });
+				        } else {
+				            document.getElementById("laybuyChart").parentElement.innerHTML =
+				                "<p style='text-align:center;color:#666;'>No status data available</p>";
+				        }
 
-    /* -------------------------
-       CHART 2: AMOUNT PIE
-       ------------------------- */
+				        /* -------------------------
+				           CHART 2: AMOUNT PIE
+				           ------------------------- */
+				        const ctx2 = document.getElementById("amountChart").getContext("2d");
 
-    const ctx2 = document.getElementById("amountChart").getContext("2d");
+				        const totalAmount = {{ laybuys | sum(attribute='total_amount') }};
+				        const paidAmount = {{ laybuys | sum(attribute='paid_amount') }};
+				        const balanceAmount = totalAmount - paidAmount;
 
-    const totalAmount = {{ laybuys | sum(attribute='total_amount') }};
-    const paidAmount = {{ laybuys | sum(attribute='paid_amount') }};
-    const balanceAmount = totalAmount - paidAmount;
+				        if (totalAmount > 0) {
+				            new Chart(ctx2, {
+				                type: "pie",
+				                data: {
+				                    labels: ["Paid Amount", "Remaining Amount"],
+				                    datasets: [{
+				                        data: [paidAmount, balanceAmount],
+				                        backgroundColor: ["#4b6cff", "#ff6384"],
+				                        borderColor: "#fff",
+				                        borderWidth: 3
+				                    }]
+				                },
+				                options: {
+				                    responsive: true,
+				                    maintainAspectRatio: false,
+				                    plugins: {
+				                        legend: {
+				                            position: "bottom",
+				                            labels: { font: { size: 14 }, color: "#333" }
+				                        }
+				                    }
+				                }
+				            });
+				        } else {
+				            document.getElementById("amountChart").parentElement.innerHTML =
+				                "<p style='text-align:center;color:#666;'>No amount data available</p>";
+				        }
+				    </script>
 
-    new Chart(ctx2, {
-        type: "pie",
-        data: {
-            labels: ["Paid Amount", "Remaining Amount"],
-            datasets: [{
-                data: [paidAmount, balanceAmount],
-                backgroundColor: ["#4b6cff", "#ff6384"],
-                borderColor: "#fff",
-                borderWidth: 3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: {
-                legend: {
-                    position: "bottom",
-                    labels: { font: { size: 14 }, color: "#333" }
-                }
-            }
-        }
-    });
-</script>
-
-</body>
-</html>
+				</body>
+				</html>

@@ -131,21 +131,37 @@
         margin-bottom: 20px;
     }
 
-    .btn-back {
-        padding: 8px 14px;
+    /* --- UNIFIED BUTTON STYLE --- */
+    .btn-back,
+    .btn-customize,
+    .btn-primary,
+    .btn-reset,
+    .btn-accent,
+    .btn-print,
+    .btn-visuals {
+        padding: 10px 16px;
         border-radius: 10px;
-        background: linear-gradient(135deg, #4b6cff, #9b5bff);
+        background: linear-gradient(135deg, #6a5af9, #836fff);
         color: #fff;
         font-size: 14px;
         font-weight: 600;
         text-decoration: none;
+        border: none;
+        cursor: pointer;
         transition: all 0.25s ease;
-        box-shadow: 0 0 8px rgba(75,108,255,0.3);
+        box-shadow: 0 3px 8px rgba(100,70,255,0.25);
+        display: inline-block;
     }
 
-    .btn-back:hover {
-        background: linear-gradient(135deg, #5d7cff, #a56cff);
-        box-shadow: 0 0 12px rgba(75,108,255,0.5);
+    .btn-back:hover,
+    .btn-customize:hover,
+    .btn-primary:hover,
+    .btn-reset:hover,
+    .btn-accent:hover,
+    .btn-print:hover,
+    .btn-visuals:hover {
+        opacity: 0.85;
+        box-shadow: 0 4px 12px rgba(100,70,255,0.35);
     }
 
     /* --- FILTER FORM LAYOUT --- */
@@ -170,66 +186,46 @@
     }
 
     .input-field:focus {
-        border-color: #4b6cff;
-        box-shadow: 0 0 8px rgba(75,108,255,0.3);
+        border-color: #6a5af9;
+        box-shadow: 0 0 8px rgba(100,70,255,0.3);
         outline: none;
     }
 
-    /* --- BUTTONS --- */
-    .btn-primary,
-    .btn-accent,
-    .btn-print,
-    .btn-visuals {
-        padding: 10px 14px;
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.25s ease;
-        cursor: pointer;
+    /* --- DROPDOWN --- */
+    .dropdown {
+        position: relative;
         display: inline-block;
     }
 
-    .btn-primary {
-        background: linear-gradient(135deg, #4b6cff, #9b5bff);
-        color: #fff;
-        border: none;
-        box-shadow: 0 0 8px rgba(75,108,255,0.3);
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background: #ffffff;
+        border: 1px solid rgba(100,70,255,0.3);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+        border-radius: 10px;
+        padding: 10px;
+        z-index: 100;
+        min-width: 180px;
     }
 
-    .btn-primary:hover {
-        box-shadow: 0 0 10px rgba(75,108,255,0.4);
+    .dropdown:hover .dropdown-content {
+        display: block;
     }
 
-    .btn-accent {
-        background: rgba(75,108,255,0.15);
-        color: #4b6cff;
+    .dropdown-content a {
+        display: block;
+        padding: 10px 14px;
+        text-decoration: none;
+        color: #333;
+        font-size: 14px;
+        border-radius: 8px;
+        transition: all 0.25s ease;
     }
 
-    .btn-accent:hover {
-        background: rgba(75,108,255,0.25);
-        color: #4b6cff;
-    }
-
-    .btn-print {
-        background: rgba(255,165,0,0.25);
-        color: #ffa500;
-    }
-
-    .btn-print:hover {
-        background: rgba(255,165,0,0.35);
-        color: #ffb733;
-    }
-
-    .btn-visuals {
-        background: linear-gradient(135deg, #4b6cff, #9b5bff);
-        color: #fff;
-        box-shadow: 0 0 8px rgba(75,108,255,0.3);
-    }
-
-    .btn-visuals:hover {
-        background: linear-gradient(135deg, #5d7cff, #a56cff);
-        box-shadow: 0 0 12px rgba(75,108,255,0.5);
+    .dropdown-content a:hover {
+        background: rgba(100,70,255,0.15);
+        color: #6a5af9;
     }
 
     /* --- TABLE --- */
@@ -248,132 +244,41 @@
     }
 
     .records-table th {
-        background: rgba(75,108,255,0.1);
+        background: rgba(100,70,255,0.1);
         color: var(--text);
     }
 
     .records-table tr:hover {
-        background: rgba(75,108,255,0.08);
+        background: rgba(100,70,255,0.08);
     }
 
     /* --- TOTALS --- */
     .totals-summary {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
         display: flex;
+        justify-content: center;
         gap: 15px;
-        margin-top: 20px;
+        padding: 12px 0;
+        background: #ffffff;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+        border-top: 1px solid rgba(180,190,255,0.3);
+        z-index: 999;
     }
 
     .total-card {
-        background: var(--card-bg);
+        background: #ffffff;
         border-radius: 10px;
         padding: 12px 18px;
-        box-shadow: 0 0 8px rgba(75,108,255,0.2);
+        box-shadow: 0 0 8px rgba(100,70,255,0.2);
         font-weight: 600;
+        color: #000;
     }
 
     .no-records {
         margin-top: 20px;
         color: var(--text-muted);
     }
-	.btn-customize {
-	    padding: 10px 14px;
-	    border-radius: 10px;
-	    background: rgba(0, 200, 255, 0.25);
-	    color: #00c8ff;
-	    font-size: 14px;
-	    font-weight: 600;
-	    text-decoration: none;
-	    transition: all 0.25s ease;
-	    cursor: pointer;
-	}
-
-	.btn-customize:hover {
-	    background: rgba(0, 200, 255, 0.35);
-	    color: #33d6ff;
-	}
-
-	.btn-reset {
-	    padding: 10px 14px;
-	    border-radius: 10px;
-	    background: rgba(255, 80, 80, 0.25);
-	    color: #ff5050;
-	    font-size: 14px;
-	    font-weight: 600;
-	    text-decoration: none;
-	    transition: all 0.25s ease;
-	    cursor: pointer;
-	}
-
-	.btn-reset:hover {
-	    background: rgba(255, 80, 80, 0.35);
-	    color: #ff7373;
-	}
-	.dropdown {
-	    position: relative;
-	    display: inline-block;
-	}
-
-	.dropdown-content {
-	    display: none;
-	    position: absolute;
-
-	    /* FIX: Solid white background */
-	    background: #ffffff;
-
-	    border: 1px solid rgba(75,108,255,0.4);
-	    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-	    border-radius: 10px;
-	    padding: 10px;
-	    z-index: 100;
-	    min-width: 180px;
-	}
-
-	.dropdown:hover .dropdown-content {
-	    display: block;
-	}
-
-	.dropdown-content a {
-	    display: block;
-	    padding: 10px 14px;
-	    text-decoration: none;
-
-	    /* FIX: Dark text for white background */
-	    color: #333;
-
-	    font-size: 14px;
-	    border-radius: 8px;
-	    transition: all 0.25s ease;
-	}
-
-	.dropdown-content a:hover {
-	    background: rgba(75,108,255,0.15);
-	    color: #4b6cff;
-	}
-	.totals-summary {
-	    position: fixed;
-	    bottom: 0;
-	    left: 0;
-	    width: 100%;
-	    display: flex;
-	    justify-content: center;
-	    gap: 15px;
-	    padding: 12px 0;
-	    background: #ffffff; /* solid white background */
-	    box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
-	    border-top: 1px solid rgba(180,190,255,0.3);
-	    z-index: 999; /* ensures it stays above other elements */
-	}
-
-	.total-card {
-	    background: #ffffff;
-	    border-radius: 10px;
-	    padding: 12px 18px;
-	    box-shadow: 0 0 8px rgba(75,108,255,0.2);
-	    font-weight: 600;
-	    color: #000;
-	}
-
-
-
-
 </style>

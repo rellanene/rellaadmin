@@ -1,6 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response, make_response
 from werkzeug.security import check_password_hash
 import mysql.connector
+import io
+import csv
+from datetime import datetime
+
 
 app = Flask(__name__)
 app.secret_key = "rella-admin-secret"  # required for sessions
@@ -677,7 +681,11 @@ def invoicing():
 @app.route('/laybuys')
 @require_login
 def laybuys():
-    # --- Fetch lay-buy summary ---
+    q = request.args.get('q')
+    start = request.args.get('start')
+    end = request.args.get('end')
+    quick = request.args.get('quick')
+
     sql = """
         SELECT 
             l.id,
@@ -692,11 +700,296 @@ def laybuys():
             l.created_at
         FROM client_laybuys l
         LEFT JOIN clients c ON l.client_id = c.id
-        ORDER BY l.created_at DESC
+        WHERE 1=1
     """
-    laybuys = query_all(sql)
+    params = []
 
-    return render_template('laybuys.html', laybuys=laybuys)
+    # Search by lay-buy number
+    if q:
+        sql += " AND l.laybuy_number LIKE %s"
+        params.append(f"%{q}%")
+
+    # Filter only on start_date (DATE type)
+    if start and end:
+        sql += " AND l.start_date BETWEEN %s AND %s"
+        params.extend([start, end])
+    elif start:
+        sql += " AND l.start_date >= %s"
+        params.append(start)
+    elif end:
+        sql += " AND l.start_date <= %s"
+        params.append(end)
+
+    # Optional quick filters (still based on created_at)
+    if quick == "today":
+        sql += " AND DATE(l.created_at) = CURDATE()"
+    elif quick == "yesterday":
+        sql += " AND DATE(l.created_at) = CURDATE() - INTERVAL 1 DAY"
+    elif quick == "last7":
+        sql += " AND DATE(l.created_at) >= CURDATE() - INTERVAL 7 DAY"
+    elif quick == "current_week":
+        sql += " AND YEARWEEK(l.created_at, 1) = YEARWEEK(CURDATE(), 1)"
+    elif quick == "last_week":
+        sql += " AND YEARWEEK(l.created_at, 1) = YEARWEEK(CURDATE() - INTERVAL 1 WEEK, 1)"
+    elif quick == "current_month":
+        sql += " AND YEAR(l.created_at) = YEAR(CURDATE()) AND MONTH(l.created_at) = MONTH(CURDATE())"
+    elif quick == "last_month":
+        sql += " AND YEAR(l.created_at) = YEAR(CURDATE() - INTERVAL 1 MONTH) AND MONTH(l.created_at) = MONTH(CURDATE() - INTERVAL 1 MONTH)"
+    elif quick == "current_year":
+        sql += " AND YEAR(l.created_at) = YEAR(CURDATE())"
+    elif quick == "last_year":
+        sql += " AND YEAR(l.created_at) = YEAR(CURDATE() - INTERVAL 1 YEAR)"
+
+    sql += " ORDER BY l.start_date DESC"
+
+    laybuys = query_all(sql, params)
+
+    return render_template(
+        'laybuys.html',
+        laybuys=laybuys,
+        q=q,
+        start=start,
+        end=end,
+        quick=quick
+    )
+
+
+    
+
+
+
+@app.route('/export_laybuys_csv')
+@require_login
+def export_laybuys_csv():
+    q = request.args.get('q')
+    start = request.args.get('start')
+    end = request.args.get('end')
+    quick = request.args.get('quick')
+
+    sql = """
+        SELECT l.laybuy_number, c.name AS client_name, l.status,
+               l.start_date, l.expiry_date,
+               l.total_amount, l.paid_amount,
+               (l.total_amount - l.paid_amount) AS balance,
+               l.created_at
+        FROM client_laybuys l
+        LEFT JOIN clients c ON l.client_id = c.id
+        WHERE 1=1
+    """
+    params = []
+
+    if q:
+        sql += " AND l.laybuy_number LIKE %s"
+        params.append(f"%{q}%")
+
+    if start and end:
+        sql += " AND l.start_date BETWEEN %s AND %s"
+        params.extend([start, end])
+    elif start:
+        sql += " AND l.start_date >= %s"
+        params.append(start)
+    elif end:
+        sql += " AND l.start_date <= %s"
+        params.append(end)
+
+    if quick == "last7":
+        sql += " AND DATE(l.created_at) >= CURDATE() - INTERVAL 7 DAY"
+    elif quick == "today":
+        sql += " AND DATE(l.created_at) = CURDATE()"
+    # … add other quick filters here …
+
+    sql += " ORDER BY l.start_date DESC"
+
+    rows = query_all(sql, params)
+
+    # Build CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Lay‑Buy No", "Client", "Status", "Start Date", "Expiry Date",
+        "Total Amount", "Paid Amount", "Balance", "Created At"
+    ])
+
+    total_amount = 0
+    total_paid = 0
+    total_balance = 0
+
+    for r in rows:
+        writer.writerow([
+            r["laybuy_number"], r["client_name"], r["status"], r["start_date"],
+            r["expiry_date"], r["total_amount"], r["paid_amount"], r["balance"],
+            r["created_at"]
+        ])
+        total_amount += r["total_amount"]
+        total_paid += r["paid_amount"]
+        total_balance += r["balance"]
+
+    # Totals row
+    writer.writerow([])
+    writer.writerow(["Totals", "", "", "", "",
+                     f"{total_amount:.2f}", f"{total_paid:.2f}", f"{total_balance:.2f}", ""])
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = (
+        f"attachment; filename=Laybuy_Report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+    )
+    response.headers["Content-Type"] = "text/csv"
+    return response
+
+
+
+
+# --- Print Lay‑Buys (Simplified) ---
+@app.route('/print_laybuys')
+@require_login
+def print_laybuys():
+    from datetime import datetime, date, timedelta
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    q = request.args.get('q', '').strip()
+    start = request.args.get('start')
+    end = request.args.get('end')
+    quick = request.args.get('quick')
+
+    # --- Quick filters ---
+    today = date.today()
+    if quick == "last7":
+        start = today - timedelta(days=7)
+        end = today
+    elif quick == "today":
+        start = today
+        end = today
+    elif quick == "yesterday":
+        start = today - timedelta(days=1)
+        end = today - timedelta(days=1)
+    elif quick == "current_week":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    elif quick == "current_month":
+        start = today.replace(day=1)
+        end = today
+
+    # --- Query ---
+    sql = """
+        SELECT 
+            l.laybuy_number,
+            c.name AS client_name,
+            l.start_date,
+            l.total_amount,
+            l.paid_amount,
+            (l.total_amount - l.paid_amount) AS balance
+        FROM client_laybuys l
+        LEFT JOIN clients c ON l.client_id = c.id
+        WHERE 1=1
+    """
+    params = []
+
+    if q:
+        sql += " AND l.laybuy_number LIKE %s"
+        params.append(f"%{q}%")
+    if start:
+        sql += " AND DATE(l.start_date) >= %s"
+        params.append(start)
+    if end:
+        sql += " AND DATE(l.start_date) <= %s"
+        params.append(end)
+
+    sql += " ORDER BY l.start_date DESC"
+    rows = query_all(sql, params)
+
+    # --- Totals ---
+    total_amount = sum(float(r["total_amount"] or 0) for r in rows)
+    total_paid = sum(float(r["paid_amount"] or 0) for r in rows)
+    total_balance = sum(float(r["balance"] or 0) for r in rows)
+
+    # --- PDF Generation ---
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # --- Header ---
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(30, height - 50, "LayBuy Records Report")
+    pdf.setFont("Helvetica", 10)
+    pdf.line(30, height - 55, width - 30, height - 55)
+
+    # --- Filter range + timestamp + totals ---
+    printed_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    pdf.drawString(30, height - 70, f"Filter Range: {start or '—'}  to  {end or '—'}")
+    pdf.drawString(250, height - 70, f"Totals: R{total_balance:,.2f}")
+    pdf.drawRightString(width - 30, height - 70, f"Printed on: {printed_on}")
+
+    # --- Column titles ---
+    pdf.setFont("Helvetica-Bold", 10)
+    y = height - 90
+    pdf.drawString(30, y, "LayBuy No")
+    pdf.drawString(130, y, "Client")
+    pdf.drawRightString(280, y, "Start Date")
+    pdf.drawRightString(400, y, "Total Amount")
+    pdf.drawRightString(500, y, "Paid Amount")
+    pdf.drawRightString(580, y, "Balance")
+    pdf.line(30, y - 5, width - 30, y - 5)
+
+    # --- Table rows ---
+    pdf.setFont("Helvetica", 9)
+    y -= 20
+    for r in rows:
+        laybuy_number = str(r["laybuy_number"] or "—")
+        client_name = str(r["client_name"] or "—")
+        start_date = str(r["start_date"] or "—")
+        total_amount_val = f"{r['total_amount']:.2f}" if r["total_amount"] is not None else "0.00"
+        paid_amount_val = f"{r['paid_amount']:.2f}" if r["paid_amount"] is not None else "0.00"
+        balance_val = f"{r['balance']:.2f}" if r["balance"] is not None else "0.00"
+
+        pdf.drawString(30, y, laybuy_number)
+        pdf.drawString(130, y, client_name)
+        pdf.drawRightString(280, y, start_date)
+        pdf.drawRightString(400, y, total_amount_val)
+        pdf.drawRightString(500, y, paid_amount_val)
+        pdf.drawRightString(580, y, balance_val)
+        y -= 18
+
+        # --- Page break ---
+        if y < 50:
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
+            pdf.showPage()
+            pdf.setFont("Helvetica-Bold", 18)
+            pdf.drawString(30, height - 50, "Lay‑Buy Records Report (continued)")
+            pdf.setFont("Helvetica", 10)
+            pdf.line(30, height - 55, width - 30, height - 55)
+            pdf.setFont("Helvetica-Bold", 10)
+            y = height - 80
+            pdf.drawString(30, y, "Lay‑Buy No")
+            pdf.drawString(130, y, "Client")
+            pdf.drawRightString(280, y, "Start Date")
+            pdf.drawRightString(400, y, "Total Amount")
+            pdf.drawRightString(500, y, "Paid Amount")
+            pdf.drawRightString(580, y, "Balance")
+            pdf.line(30, y - 5, width - 30, y - 5)
+            pdf.setFont("Helvetica", 9)
+            y -= 20
+
+    # --- Footer ---
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawRightString(width - 30, 30, f"Page {pdf.getPageNumber()}")
+
+    pdf.save()
+    buffer.seek(0)
+
+    # --- Dynamic filename ---
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"laybuy_report_{timestamp}.pdf"
+
+    return Response(
+        buffer,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={filename}"}
+    )
+
+
 
 
 
